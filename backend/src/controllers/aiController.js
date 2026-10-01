@@ -1,10 +1,11 @@
 const OpenAI = require("openai");
 const prisma = require("../utils/prisma");
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
+const openai = process.env.OPENAI_API_KEY
+  ? new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    })
+  : null;
 const generateProjectSummary = async (req, res) => {
   try {
     const projectId = Number(req.params.projectId);
