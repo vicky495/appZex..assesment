@@ -1,0 +1,201 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model activitylog {
+  id        Int      @id @default(autoincrement())
+  action    String
+  details   String?  @db.Text
+  userId    Int
+  projectId Int?
+  createdAt DateTime @default(now())
+  project   project? @relation(fields: [projectId], references: [id], map: "ActivityLog_projectId_fkey")
+  user      user     @relation(fields: [userId], references: [id], map: "ActivityLog_userId_fkey")
+
+  @@index([projectId], map: "ActivityLog_projectId_idx")
+  @@index([userId], map: "ActivityLog_userId_idx")
+}
+
+model agency {
+  id        Int       @id @default(autoincrement())
+  name      String
+  slug      String    @unique(map: "Agency_slug_key")
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime @updatedAt
+  client    client[]
+  project   project[]
+  user      user[]
+}
+
+model client {
+  id        Int        @id @default(autoincrement())
+  name      String
+  email     String
+  agencyId  Int
+  createdAt DateTime   @default(now())
+  updatedAt DateTime @updatedAt
+  agency    agency     @relation(fields: [agencyId], references: [id], map: "Client_agencyId_fkey")
+  feedback  feedback[]
+  project   project[]
+  user      user[]
+
+  @@index([agencyId], map: "Client_agencyId_idx")
+}
+
+model feedback {
+  id        Int             @id @default(autoincrement())
+  message   String          @db.Text
+  status    feedback_status @default(OPEN)
+  projectId Int
+  clientId  Int
+  createdAt DateTime        @default(now())
+ updatedAt DateTime @updatedAt
+  client    client          @relation(fields: [clientId], references: [id], map: "Feedback_clientId_fkey")
+  project   project         @relation(fields: [projectId], references: [id], map: "Feedback_projectId_fkey")
+
+  @@index([clientId], map: "Feedback_clientId_idx")
+  @@index([projectId], map: "Feedback_projectId_idx")
+}
+
+model file {
+  id         Int      @id @default(autoincrement())
+  fileName   String
+  filePath   String
+  mimeType   String?
+  size       Int?
+  projectId  Int
+  uploadedBy Int
+  createdAt  DateTime @default(now())
+  project    project  @relation(fields: [projectId], references: [id], map: "File_projectId_fkey")
+  user       user     @relation(fields: [uploadedBy], references: [id], map: "File_uploadedBy_fkey")
+
+  @@index([projectId], map: "File_projectId_idx")
+  @@index([uploadedBy], map: "File_uploadedBy_idx")
+}
+
+model meeting {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String?  @db.Text
+  meetingDate DateTime
+  projectId   Int
+  createdAt   DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  project     project  @relation(fields: [projectId], references: [id], map: "Meeting_projectId_fkey")
+
+  @@index([projectId], map: "Meeting_projectId_idx")
+}
+
+model milestone {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?  @db.Text
+  projectId   Int
+  createdAt   DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  project     project  @relation(fields: [projectId], references: [id], map: "Milestone_projectId_fkey")
+  task        task[]
+
+  @@index([projectId], map: "Milestone_projectId_idx")
+}
+
+model project {
+  id          Int            @id @default(autoincrement())
+  name        String
+  description String?        @db.Text
+  status      project_status @default(PLANNING)
+  agencyId    Int
+  clientId    Int
+  createdAt   DateTime       @default(now())
+  updatedAt DateTime @updatedAt
+  activitylog activitylog[]
+  feedback    feedback[]
+  file        file[]
+  meeting     meeting[]
+  milestone   milestone[]
+  agency      agency         @relation(fields: [agencyId], references: [id], map: "Project_agencyId_fkey")
+  client      client         @relation(fields: [clientId], references: [id], map: "Project_clientId_fkey")
+  task        task[]
+
+  @@index([agencyId], map: "Project_agencyId_idx")
+  @@index([clientId], map: "Project_clientId_idx")
+}
+
+model task {
+  id          Int            @id @default(autoincrement())
+  title       String
+  description String?        @db.Text
+  status      task_status    @default(TODO)
+  priority    task_priority  @default(MEDIUM)
+  dueDate     DateTime?
+  projectId   Int
+  milestoneId Int?
+  assigneeId  Int?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  milestone   milestone?     @relation(fields: [milestoneId], references: [id], map: "Task_milestoneId_fkey")
+  project     project        @relation(fields: [projectId], references: [id], map: "Task_projectId_fkey")
+  assignee    user?          @relation(fields: [assigneeId], references: [id], map: "Task_assigneeId_fkey")
+
+  @@index([milestoneId], map: "Task_milestoneId_idx")
+  @@index([projectId], map: "Task_projectId_idx")
+  @@index([assigneeId], map: "Task_assigneeId_idx")
+}
+
+model user {
+  id          Int           @id @default(autoincrement())
+  email       String        @unique(map: "User_email_key")
+  password    String
+  name        String
+  role        user_role     @default(AGENCY_TEAM)
+  agencyId    Int?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  clientId    Int?
+  activitylog activitylog[]
+  tasks       task[]
+  file        file[]
+  agency      agency?       @relation(fields: [agencyId], references: [id], map: "User_agencyId_fkey")
+  client      client?       @relation(fields: [clientId], references: [id], map: "User_clientId_fkey")
+
+  @@index([agencyId], map: "User_agencyId_idx")
+  @@index([clientId], map: "User_clientId_idx")
+}
+
+enum feedback_status {
+  OPEN
+  IN_REVIEW
+  RESOLVED
+}
+
+enum project_status {
+  PLANNING
+  IN_PROGRESS
+  ON_HOLD
+  COMPLETED
+}
+
+enum task_status {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+enum user_role {
+  SUPER_ADMIN
+  AGENCY_ADMIN
+  AGENCY_TEAM
+  CLIENT
+}
+enum task_priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
